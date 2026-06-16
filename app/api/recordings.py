@@ -173,15 +173,14 @@ def start_recording(stream_name):
         ])
         
         # Video encoding strategy:
-        # Copy mode: use -c:v copy when source is H.264 (much lower CPU, preserves original quality)
-        # Re-encode mode: force CFR 29.97fps for proper drop-frame timecode (default for non-H.264)
-        use_copy = force_copy and stream_info.get('codec') == 'h264'
+        # Copy mode: use -c:v copy when source is H.264 or AV1 (much lower CPU, preserves original quality)
+        # Re-encode mode: force CFR 29.97fps for proper drop-frame timecode (default for other codecs)
+        _src_codec = stream_info.get('codec')
+        use_copy = force_copy and _src_codec in ('h264', 'av1')
         
         if use_copy:
-            ffmpeg_args.extend([
-                '-c:v', 'copy',
-            ])
-            logger.info(f"Recording with copy mode (no re-encoding) — source is H.264")
+            ffmpeg_args.extend(['-c:v', 'copy'])
+            logger.info(f"Recording with copy mode (no re-encoding) — source is {_src_codec}")
         else:
             # ALWAYS re-encode to force CFR 29.97fps for proper drop-frame timecode
             # VFR streams cause timecode drift, must convert to CFR

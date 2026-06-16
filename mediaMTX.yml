@@ -58,7 +58,7 @@ rtmpAddress: 0.0.0.0:1935
 hls: yes
 hlsAddress: :8888
 hlsEncryption: no
-hlsTrustedProxies: ['127.0.0.1']
+hlsTrustedProxies: [127.0.0.1]
 hlsVariant: fmp4
 hlsSegmentCount: 3
 hlsSegmentDuration: 500ms

@@ -236,6 +236,10 @@ def monitor_streams_for_auto_record():
 app = create_app()
 socketio = app.socketio
 
+# Load persisted settings and apply to MediaMTX (MTU etc.)
+from app.api.settings import load_and_apply_server_settings
+load_and_apply_server_settings()
+
 if __name__ == '__main__':
     # Register signal handlers
     signal.signal(signal.SIGINT, cleanup_on_exit)

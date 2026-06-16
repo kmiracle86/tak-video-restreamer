@@ -95,6 +95,19 @@ class MediaMTXClient:
         except Exception as e:
             logger.error(f"Error deleting path {path_name}: {e}")
             return False
+
+    def patch_global_config(self, payload: dict, timeout: int = 5) -> bool:
+        """Patch MediaMTX global configuration at runtime."""
+        try:
+            response = requests.patch(
+                f'{self.api_url}/v3/config/global/patch',
+                json=payload,
+                timeout=timeout
+            )
+            return response.status_code in [200, 204]
+        except Exception as e:
+            logger.error(f"Error patching global config: {e}")
+            return False
     
     # MediaMTX v1.16 has per-protocol endpoints, no generic /connections/
     _CONN_ENDPOINTS = [

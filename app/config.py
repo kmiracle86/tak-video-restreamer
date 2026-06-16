@@ -96,6 +96,7 @@ SERVER_SETTINGS_SCHEMA = {
     'enable_ffmpeg_reconnect': (bool,),
     'standby_enabled': (bool,),
     'standby_timeout_minutes': (int, 0, 14400),  # 0 = infinite, max 10 days
+    'udp_max_payload_size': (int, 576, 65535),
 }
 
 SERVER_SETTINGS = {
@@ -133,4 +134,7 @@ SERVER_SETTINGS = {
     # Stream standby / persistence
     'standby_enabled': True,
     'standby_timeout_minutes': 60,  # 0 = never expire
+
+    # Network / MTU
+    'udp_max_payload_size': 1452,  # bytes; matches mediaMTX default
 }

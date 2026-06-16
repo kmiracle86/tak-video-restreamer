@@ -483,8 +483,8 @@ class ABRManager:
         # Redirect stderr to a log file instead of PIPE to prevent deadlock.
         # subprocess.PIPE has a ~64KB OS buffer; if FFmpeg fills it and nobody
         # reads, FFmpeg blocks on write() and the stream freezes.
-        os.makedirs(FFMPEG_LOG_DIR, exist_ok=True)
         log_path = os.path.join(FFMPEG_LOG_DIR, f'{stream_name}.log')
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
         try:
             stderr_file = open(log_path, 'w')
         except OSError as e:
@@ -533,12 +533,16 @@ class ABRManager:
         ]
 
         # Build filter complex for scaling
+        # format=yuv420p is explicit here so that high-bit-depth inputs (e.g. 10-bit AV1,
+        # 10-bit HEVC) are correctly converted before reaching the libx264 encoder,
+        # which requires 8-bit yuv420p.
         filter_parts = []
         for idx, r in enumerate(renditions):
             w, h = r['width'], r['height']
             filter_parts.append(
                 f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,"
-                f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2[v{idx}]"
+                f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,"
+                f"format=yuv420p[v{idx}]"
             )
         cmd += ['-filter_complex', ';'.join(filter_parts)]
 

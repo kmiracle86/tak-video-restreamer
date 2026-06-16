@@ -76,6 +76,8 @@ def detect_stream_codec(stream_url: str, timeout: int = 5) -> Optional[Dict[str,
                     video_codec = 'h264'
                 elif codec_name in ['hevc', 'h265']:
                     video_codec = 'hevc'
+                elif codec_name in ['av1', 'libaom-av1']:
+                    video_codec = 'av1'
                 else:
                     video_codec = codec_name
                 width = stream.get('width', 0)

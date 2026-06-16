@@ -38,6 +38,54 @@ settings_bp = Blueprint('settings', __name__)
 server_settings = SERVER_SETTINGS.copy()
 
 
+def _server_settings_file():
+    """Path to the persisted server settings JSON file."""
+    return os.path.join(DATA_DIR, 'server_settings.json')
+
+
+def _save_server_settings():
+    """Persist current server_settings to disk."""
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(_server_settings_file(), 'w') as f:
+            json.dump(server_settings, f, indent=2)
+    except Exception as e:
+        logger.error(f"Error saving server settings: {e}")
+
+
+def _apply_mtu_to_mediamtx(mtu: int):
+    """Push udpMaxPayloadSize to the running MediaMTX instance."""
+    from app.config import MEDIAMTX_API_URL
+    from app.services.mediamtx import MediaMTXClient
+    try:
+        client = MediaMTXClient(MEDIAMTX_API_URL)
+        success = client.patch_global_config({'udpMaxPayloadSize': mtu})
+        if success:
+            logger.info(f"Applied udpMaxPayloadSize={mtu} to MediaMTX")
+        else:
+            logger.warning(f"Failed to apply udpMaxPayloadSize={mtu} to MediaMTX")
+    except Exception as e:
+        logger.error(f"Error applying MTU to MediaMTX: {e}")
+
+
+def load_and_apply_server_settings():
+    """Load persisted settings from disk and apply relevant ones (e.g. MTU) to MediaMTX."""
+    global server_settings
+    settings_file = _server_settings_file()
+    if os.path.exists(settings_file):
+        try:
+            with open(settings_file, 'r') as f:
+                saved = json.load(f)
+            for key, value in saved.items():
+                if key in server_settings:
+                    server_settings[key] = value
+            logger.info("Loaded persisted server settings from disk")
+        except Exception as e:
+            logger.error(f"Error loading server settings: {e}")
+
+    _apply_mtu_to_mediamtx(server_settings.get('udp_max_payload_size', 1452))
+
+
 def get_auto_record_enabled():
     """Get auto_record_enabled from centralized state"""
     return app_state.auto_record_enabled
@@ -231,6 +279,11 @@ def update_settings():
 
         if errors and not updated:
             return jsonify({'error': '; '.join(errors)}), 400
+
+        _save_server_settings()
+
+        if 'udp_max_payload_size' in updated:
+            _apply_mtu_to_mediamtx(server_settings['udp_max_payload_size'])
 
         broadcast('settings_updated', {'settings': server_settings})
 

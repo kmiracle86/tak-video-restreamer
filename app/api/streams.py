@@ -305,6 +305,15 @@ def _resolve_source_info(source: dict | None, conn_map: dict | None = None) -> d
     return {'protocol': protocol, 'sourceAddress': address}
 
 
+HLS_MUXABLE_CODECS = {'AV1', 'VP9', 'H265', 'H264', 'Opus', 'MPEG-4 Audio'}
+
+
+def _needs_transcode(tracks: list) -> bool:
+    if not tracks:
+        return False
+    return not any(track in HLS_MUXABLE_CODECS for track in tracks)
+
+
 def _extract_stream_info(path_name: str, path_info: dict, conn_map: dict | None = None) -> dict:
     """Extract stream info from a MediaMTX path entry (deduplicates list/dict handling)."""
     readers = path_info.get('readers', [])
@@ -352,6 +361,8 @@ def _extract_stream_info(path_name: str, path_info: dict, conn_map: dict | None 
     else:
         last_data_time = prev['last_change']
 
+    tracks = path_info.get('tracks') or []
+
     return {
         'name': path_name,
         'ready': path_info.get('ready', False),
@@ -362,6 +373,8 @@ def _extract_stream_info(path_name: str, path_info: dict, conn_map: dict | None 
         'protocol': source_info['protocol'],
         'sourceAddress': source_info['sourceAddress'],
         'sourceUrl': source_url,
+        'tracks': tracks,
+        'needsTranscode': _needs_transcode(tracks),
         'lastDataTime': datetime.fromtimestamp(last_data_time, tz=timezone.utc).isoformat() if bytes_received > 0 else None,
     }
 

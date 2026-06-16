@@ -88,7 +88,14 @@ def _playlist_response(filepath, check_abr_stream=None):
 
 
 def _valid_stream(name):
-    return bool(name) and re.match(r'^[a-zA-Z0-9_.-]+$', name) and len(name) <= 128
+    return (
+        bool(name)
+        and len(name) <= 128
+        and re.match(r'^[a-zA-Z0-9_./-]+$', name) is not None
+        and '..' not in name
+        and not name.startswith('/')
+        and not name.endswith('/')
+    )
 
 
 # ------------------------------------------------------------------

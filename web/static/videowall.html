@@ -170,10 +170,40 @@ This is distributed in the hope that it will be useful, but without any warranty
             state.mediaRecovery = 0;
         }
 
-        function loadCell(idx, streamName) {
+        async function loadCell(idx, streamName) {
             destroyCell(idx);
             if (!streamName) return;
-            _loadCellWithSrc(idx, streamName, `/api/hls/proxy/${encodeURIComponent(streamName)}/index.m3u8?videoonly=1`, false);
+
+            const meta = lastStreams.find(s => s.name === streamName);
+            const needsTranscode = !!(meta && meta.needsTranscode);
+
+            let abrRunning = false;
+            try {
+                const resp = await fetch(`/api/streams/${encodeURIComponent(streamName)}/abr/status`);
+                const data = resp.ok ? await resp.json() : {};
+                abrRunning = !!data.running;
+            } catch { /* fall through */ }
+
+            if (needsTranscode && !abrRunning) {
+                const { overlay, video, status } = cells[idx];
+                overlay.textContent = 'Transcoding…';
+                overlay.className = 'vw-overlay active';
+                video.style.display = 'none';
+                status.style.display = 'none';
+                try {
+                    await fetch(`/api/streams/${encodeURIComponent(streamName)}/abr`, { method: 'POST' });
+                } catch {}
+                setTimeout(() => {
+                    _loadCellWithSrc(idx, streamName, `/hls/${encodeURIComponent(streamName)}/master.m3u8`, true);
+                }, 6000);
+                return;
+            }
+
+            const useTranscode = abrRunning || needsTranscode;
+            const src = useTranscode
+                ? `/hls/${encodeURIComponent(streamName)}/master.m3u8`
+                : `/api/hls/proxy/${encodeURIComponent(streamName)}/index.m3u8?videoonly=1`;
+            _loadCellWithSrc(idx, streamName, src, useTranscode);
         }
 
         function _loadCellWithSrc(idx, streamName, src, isTranscodeFallback) {
@@ -222,9 +252,28 @@ This is distributed in the hope that it will be useful, but without any warranty
                 if (!data.fatal) return;
                 switch (data.type) {
                     case Hls.ErrorTypes.NETWORK_ERROR:
-                        status.textContent = 'Reconnecting…';
-                        status.style.display = 'block';
-                        hls.startLoad();
+                        if (!isTranscodeFallback) {
+                            // Proxy 404 likely means MediaMTX can't mux this codec — start ABR
+                            hls.destroy();
+                            state.hls = null;
+                            overlay.textContent = 'Transcoding…';
+                            overlay.className = 'vw-overlay active';
+                            video.style.display = 'none';
+                            status.style.display = 'none';
+                            fetch(`/api/streams/${encodeURIComponent(streamName)}/abr`, { method: 'POST' })
+                                .then(() => {
+                                    setTimeout(() => {
+                                        const abrSrc = `/hls/${encodeURIComponent(streamName)}/master.m3u8`;
+                                        _loadCellWithSrc(idx, streamName, abrSrc, true);
+                                    }, 6000);
+                                })
+                                .catch(() => setTimeout(() => loadCell(idx, streamName), 5000));
+                        } else {
+                            // Already on ABR — just retry
+                            status.textContent = 'Reconnecting…';
+                            status.style.display = 'block';
+                            hls.startLoad();
+                        }
                         break;
                     case Hls.ErrorTypes.MEDIA_ERROR:
                         if (state.mediaRecovery < 3) {

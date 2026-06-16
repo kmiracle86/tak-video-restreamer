@@ -178,6 +178,12 @@ This is distributed in the hope that it will be useful, but without any warranty
                 </div>
 
                 <div class="form-group">
+                    <label for="udp-max-payload-size">UDP Max Payload Size (bytes)</label>
+                    <input type="number" id="udp-max-payload-size" min="576" max="65535" step="1" value="1452">
+                    <small>Maximum UDP packet payload size for video streams (MTU). Standard Ethernet: 1472, VPN/tunnel: try 1200–1400, jumbo frames: up to 8972. Takes effect immediately.</small>
+                </div>
+
+                <div class="form-group">
                     <label for="pull-stream-buffer-size">Pull Stream Buffer Size (MB)</label>
                     <input type="number" id="pull-stream-buffer-size" min="1" max="100" step="1" value="10" readonly>
                     <small>Buffer size for pull streams to handle packet loss. Current value shown (requires env var PULL_STREAM_BUFFER_SIZE and container restart to change)</small>
@@ -943,6 +949,7 @@ environment:<br>
                     document.getElementById('rtsp-transport').value = currentSettings.rtsp_transport;
                     document.getElementById('connection-timeout').value = currentSettings.connection_timeout / 1000000;
                     document.getElementById('enable-ffmpeg-reconnect').checked = currentSettings.enable_ffmpeg_reconnect;
+                    document.getElementById('udp-max-payload-size').value = currentSettings.udp_max_payload_size;
                     
                     // Load buffer settings (convert from bytes to MB, microseconds to seconds)
                     document.getElementById('pull-stream-buffer-size').value = Math.round(data.pullStreamBufferSize / 1048576);
@@ -1064,7 +1071,8 @@ environment:<br>
                     
                     rtsp_transport: document.getElementById('rtsp-transport').value,
                     connection_timeout: parseInt(document.getElementById('connection-timeout').value) * 1000000,
-                    enable_ffmpeg_reconnect: document.getElementById('enable-ffmpeg-reconnect').checked
+                    enable_ffmpeg_reconnect: document.getElementById('enable-ffmpeg-reconnect').checked,
+                    udp_max_payload_size: parseInt(document.getElementById('udp-max-payload-size').value)
                 };
 
                 const response = await fetch('/api/settings', {
@@ -1172,8 +1180,7 @@ environment:<br>
         // Audit log listener
         document.getElementById('refresh-audit-btn').addEventListener('click', loadAuditLog);
 
-        // Certificate management listeners - now active
-        // (old commented-out listeners removed)
+        // Certificate management listeners 
         
         // SRT encryption dropdown listener
         document.getElementById('srt-encryption').addEventListener('change', togglePassphraseField);
